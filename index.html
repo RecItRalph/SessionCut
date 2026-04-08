@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>SessionCut</title>
+  <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline';">
+  <style>
+    :root {
+      --bg: #1e1e1e;
+      --card: #252526;
+      --accent: #007acc;
+      --text: #cccccc;
+      --border: #333;
+      --green: #4caf50;
+      --yellow: #ff9800;
+      --red: #d32f2f;
+      --purple: #9c27b0;
+      --control-height: 44px;
+    }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 20px;
+      user-select: none;
+      height: 100vh;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* HEADER & LAYOUT */
+    .app-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid #333;
+    }
+
+    .logo-img {
+      height: 40px;
+      width: auto;
+    }
+
+    .version-tag {
+      color: #555;
+      font-size: 0.8em;
+      margin-left: 12px;
+      font-family: 'Consolas', monospace;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+
+    .version-tag:hover {
+      color: var(--accent);
+    }
+
+    .mode-content {
+      display: none;
+      height: 100%;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .mode-content.active {
+      display: flex;
+    }
+
+    .card {
+      background: var(--card);
+      padding: 15px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      margin-bottom: 15px;
+      flex-shrink: 0;
+    }
+
+    .list-container {
+      flex: 1;
+      overflow-y: auto;
+      background: #111;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px;
+      min-height: 100px;
+    }
+
+    /* GRID & INPUTS */
+    .row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+      margin-bottom: 10px;
+    }
+
+    .row:last-child {
+      margin-bottom: 0;
+    }
+
+    .col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+      flex-shrink: 0;
+    }
+
+    .tab {
+      padding: 8px 20px;
+      background: #333;
+      border-radius: 4px 4px 0 0;
+      cursor: pointer;
+      color: #888;
+      border: 1px solid transparent;
+      border-bottom: none;
+      transition: all 0.2s;
+    }
+
+    .tab.active {
+      background: var(--card);
+      color: var(--accent);
+      font-weight: bold;
+      border-color: var(--border);
+      border-bottom: 2px solid var(--card);
+      margin-bottom: -1px;
+      z-index: 10;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85em;
+      color: #888;
+      margin-bottom: 5px;
+    }
+
+    input[type="text"],
+    input[type="password"],
+    input[type="number"],
+    button,
+    select {
+      height: var(--control-height);
+      box-sizing: border-box;
+      font-size: 0.9em;
+      width: 100%;
+      padding: 0 10px;
+      background: #3c3c3c;
+      border: 1px solid var(--border);
+      color: #fff;
+      border-radius: 4px;
+    }
+
+    button {
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    button.primary {
+      background: var(--accent);
+      border: none;
+    }
+
+    button.primary:hover {
+      background: #0062a3;
+    }
+
+    button.secondary {
+      background: #444;
+      border: 1px solid #555;
+    }
+
+    button.secondary:hover {
+      background: #555;
+    }
+
+    button.danger {
+      background: var(--red);
+      border: none;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* TOGGLES */
+    label.toggle-container {
+      display: flex;
+      align-items: center;
+      background: #333;
+      padding: 0 10px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      height: var(--control-height);
+      box-sizing: border-box;
+      cursor: pointer;
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 40px;
+      height: 22px;
+      margin-right: 12px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #555;
+      transition: .3s;
+      border-radius: 34px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .3s;
+      border-radius: 50%;
+    }
+
+    input:checked+.slider {
+      background-color: var(--accent);
+    }
+
+    input:checked+.slider:before {
+      transform: translateX(18px);
+    }
+
+    .toggle-label {
+      color: #ccc;
+      font-size: 0.95em;
+      user-select: none;
+    }
+
+    /* CONDITIONAL SETTINGS */
+    .ftp-settings {
+      display: none;
+      background: #222;
+      padding: 10px;
+      border-radius: 4px;
+      border: 1px solid #333;
+      margin-top: 5px;
+    }
+
+    .ftp-settings.visible {
+      display: block;
+      animation: slideDown 0.2s ease-out;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-5px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* INDICATORS */
+    .processing-badge {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      background: rgba(0, 122, 204, 0.2);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 0.85em;
+      font-weight: 600;
+      animation: pulse 2s infinite;
+      margin-left: auto;
+    }
+
+    .spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid var(--accent);
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(0, 122, 204, 0.4);
+      }
+
+      70% {
+        box-shadow: 0 0 0 6px rgba(0, 122, 204, 0);
+      }
+
+      100% {
+        box-shadow: 0 0 0 0 rgba(0, 122, 204, 0);
+      }
+    }
+
+    .auto-pilot-active {
+      border: 2px solid var(--green);
+      box-shadow: 0 0 15px rgba(76, 175, 80, 0.2);
+    }
+
+    /* FILE LIST ITEMS - FIXED LAYOUT */
+    .file-item {
+      position: relative;
+      display: block;
+      height: 50px;
+      width: 100%;
+      background: #1a1a1a;
+      border-bottom: 1px solid #222;
+      margin-bottom: 2px;
+      border-radius: 4px;
+      overflow: hidden;
+      cursor: grab;
+      /* Added for drag UX */
+    }
+
+    .file-item.dragging {
+      opacity: 0.5;
+      cursor: grabbing;
+      border: 1px dashed var(--accent);
+    }
+
+    /* Added for drag UX */
+    .file-item.selected {
+      border: 1px solid var(--accent);
+      background: #222;
+    }
+
+    /* Added for Selection UX */
+
+    .file-bg-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 0;
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-position: center;
+      opacity: 0.2;
+      pointer-events: none;
+      transition: opacity 0.5s ease;
+    }
+
+    .file-progress-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 0%;
+      background-color: rgba(76, 175, 80, 0.35);
+      z-index: 5;
+      transition: width 0.2s linear;
+      pointer-events: none;
+    }
+
+    .file-content-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+    }
+
+    .file-name {
+      flex: 1;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-right: 15px;
+      font-weight: 500;
+      color: #aaa;
+      text-shadow: 0 1px 2px black;
+      pointer-events: none;
+    }
+
+    .file-status {
+      flex: 0 0 auto;
+      min-width: 90px;
+      padding: 4px 8px;
+      color: #ddd;
+      font-size: 0.8em;
+      text-align: center;
+      margin-right: 10px;
+      background: rgba(0, 0, 0, 0.7);
+      border-radius: 4px;
+      border: 1px solid #444;
+      backdrop-filter: blur(2px);
+    }
+
+    /* STATUS COLORS */
+    .status-pending {
+      color: #888;
+      border-color: #444;
+    }
+
+    .status-scanning {
+      color: var(--yellow);
+      border-color: var(--yellow);
+    }
+
+    .status-review {
+      color: var(--purple);
+      border-color: var(--purple);
+    }
+
+    .status-saving {
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .status-done {
+      color: var(--green);
+      border-color: var(--green);
+      background: rgba(76, 175, 80, 0.1);
+    }
+
+    .status-error {
+      color: var(--red);
+      border-color: var(--red);
+      background: rgba(244, 67, 54, 0.1);
+    }
+
+    .status-no-speech {
+      color: #ff9800;
+      border-color: #ff9800;
+      background: rgba(255, 152, 0, 0.1);
+      font-weight: bold;
+    }
+
+    .btn-remove {
+      flex: 0 0 auto;
+      width: 30px;
+      height: 30px;
+      background: transparent;
+      border: none;
+      color: #777;
+      cursor: pointer;
+      font-size: 1.2em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.2s;
+    }
+
+    .btn-remove:hover {
+      color: var(--red);
+    }
+
+    .btn-retry {
+      flex: 0 0 auto;
+      width: 30px;
+      height: 30px;
+      background: transparent;
+      border: none;
+      color: #777;
+      cursor: pointer;
+      font-size: 1.2em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.2s;
+      margin-right: 5px;
+    }
+
+    .btn-retry:hover {
+      color: var(--accent);
+      transform: rotate(45deg);
+    }
+
+    .tooltip-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #555;
+      color: #fff;
+      font-size: 10px;
+      font-weight: bold;
+      margin-left: 5px;
+      position: relative;
+    }
+
+    .tooltip-icon:hover {
+      background: var(--accent);
+    }
+
+    .tooltip-icon::before {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      margin-bottom: 8px;
+      background-color: #333;
+      color: #fff;
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: normal;
+      font-family: 'Segoe UI', sans-serif;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.15s ease-in-out, visibility 0.15s ease-in-out;
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+      pointer-events: none;
+      z-index: 1000;
+      width: max-content;
+      max-width: 200px;
+      text-align: center;
+      line-height: 1.3;
+    }
+
+    .tooltip-icon::after {
+      content: "";
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border-width: 5px;
+      border-style: solid;
+      border-color: var(--border) transparent transparent transparent;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.15s ease-in-out, visibility 0.15s ease-in-out;
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    .tooltip-icon:hover::before,
+    .tooltip-icon:hover::after {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    /* LOGS */
+    .log-entry {
+      font-family: 'Consolas', monospace;
+      font-size: 0.85em;
+      padding: 4px 8px;
+      border-bottom: 1px solid #222;
+      color: #aaa;
+    }
+
+    .log-entry.error {
+      color: var(--red);
+    }
+
+    /* PROGRESS BARS */
+    .bar-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8em;
+      margin-bottom: 4px;
+      color: #aaa;
+    }
+
+    .progress-track {
+      background: #111;
+      height: 6px;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 10px;
+      border: 1px solid #333;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      transition: width 0.2s linear;
+    }
+
+    .fill-blue {
+      background: var(--accent);
+    }
+
+    /* OVERLAYS & MODALS */
+    #dropOverlay {
+      display: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 122, 204, 0.9);
+      z-index: 999;
+      color: white;
+      font-size: 2em;
+      font-weight: bold;
+      align-items: center;
+      justify-content: center;
+      border: 4px dashed white;
+      box-sizing: border-box;
+      pointer-events: none;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-content {
+      background: #1e1e1e;
+      padding: 25px;
+      border-radius: 8px;
+      border: 1px solid #444;
+      width: 600px;
+      max-width: 90%;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .segment-item {
+      padding: 8px;
+      border-bottom: 1px solid #333;
+      font-family: monospace;
+      color: #aaa;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      margin-top: 20px;
+    }
+
+    /* FTP BROWSER SPECIFIC */
+    .ftp-list {
+      max-height: 300px;
+      overflow-y: auto;
+      background: #111;
+      border: 1px solid #333;
+      border-radius: 4px;
+      margin-top: 10px;
+    }
+
+    .ftp-item {
+      padding: 8px 12px;
+      border-bottom: 1px solid #222;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      color: #ccc;
+    }
+
+    .ftp-item:hover {
+      background: #2a2a2a;
+      color: white;
+    }
+
+    .ftp-item.folder {
+      font-weight: bold;
+      color: var(--accent);
+    }
+
+    .ftp-item i {
+      margin-right: 10px;
+      font-style: normal;
+    }
+
+    /* TOAST */
+    #toast-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .toast {
+      background: #333;
+      border-left: 4px solid var(--accent);
+      color: #fff;
+      padding: 15px 20px;
+      border-radius: 4px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      min-width: 250px;
+      transform: translateX(120%);
+      transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+    }
+
+    .toast.show {
+      transform: translateX(0);
+    }
+
+    .toast.error {
+      border-left-color: var(--red);
+    }
+
+    .toast.success {
+      border-left-color: var(--green);
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="activationOverlay"
+    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#111; z-index:9999; flex-direction:column; align-items:center; justify-content:center;">
+    <img src="assets/SessionCutLogo.png" style="width:300px; margin-bottom:20px;">
+    <h2>SessionCut Activation</h2>
+    <p style="color:#888; margin-bottom:20px;">Please enter your activation key to continue.</p>
+    <div style="width: 300px;">
+      <input type="text" id="licenseKeyInput" placeholder="XXXX-XXXX-XXXX"
+        style="text-align:center; letter-spacing:2px; text-transform:uppercase;">
+      <div style="height:10px;"></div>
+      <button id="activateBtn" class="primary">Activate License</button>
+      <p id="activationMsg" style="text-align:center; margin-top:10px; font-size:0.9em;"></p>
+    </div>
+  </div>
+
+  <div id="dropOverlay">Drop files to add</div>
+  <div id="toast-container"></div>
+
+  <div class="app-header">
+    <img src="assets/SessionCutLogo.png" alt="SessionCut" class="logo-img">
+    <span class="version-tag" id="appVersionTag" onclick="openAboutModal()">v...</span>
+    <div id="globalIndicator" class="processing-badge">
+      <div class="spinner"></div> PROCESSING...
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" id="tabManual" onclick="switchTab('manual')">Manual Batch</div>
+    <div class="tab" id="tabAuto" onclick="switchTab('auto')">AutoPilot</div>
+    <div class="tab" id="tabSettings" onclick="switchTab('settings')">Settings</div>
+  </div>
+
+  <div id="viewManual" class="mode-content active">
+    <div class="card">
+      <div class="row">
+        <div class="col" style="flex: 2;">
+          <div class="row"
+            style="background: #111; padding: 10px; border-radius: 6px; border: 1px solid #333; margin-bottom: 15px;">
+            <div style="display:flex; align-items:center; width:100%; gap:10px;">
+              <label style="margin:0; min-width:60px;">Profile:</label>
+              <select id="presetSelect" style="flex:1;">
+                <option value="Custom">Custom Settings</option>
+              </select>
+              <button id="savePresetBtn" class="secondary" style="width:120px;">Save As New</button>
+              <button id="deletePresetBtn" class="danger" style="width:80px; display:none;">Delete</button>
+            </div>
+          </div>
+          <label>Input Videos</label>
+          <div style="display:flex; gap: 5px;">
+            <button id="addBtn" class="secondary" style="flex: 4;">+ Add Files</button>
+            <button id="clearBtn" class="secondary" style="flex: 1;">Clear</button>
+          </div>
+        </div>
+        <div class="col" style="flex: 2;">
+          <label>Output Folder</label>
+          <div style="display:flex; gap:5px;">
+            <input type="text" id="outPath" value="Same as source" readonly>
+            <button id="outBtn" class="secondary" style="width:50px;">...</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:10px;">
+        <div class="col" style="flex: 1;">
+          <label style="margin-bottom:5px;">VAD Sensitivity<span class="tooltip-icon"
+              data-tooltip="Volume sensitivity (0.0 - 1.0). Higher means it ignores louder background noise.">?</span></label>
+          <select id="manualSensitivity">
+            <option value="0.3">Loose (0.3)</option>
+            <option value="0.5" selected>Standard (0.5)</option>
+            <option value="0.8">Strict (0.8)</option>
+            <option value="0.95">Aggressive (0.95)</option>
+          </select>
+        </div>
+
+        <div class="col" style="flex: 1.5;">
+          <div style="display:flex; align-items: flex-end; gap: 8px;">
+            <div style="flex:1">
+              <label class="toggle-container" style="margin-bottom:0;">
+                <div class="switch"><input type="checkbox" id="manualSplit"><span class="slider"></span></div>
+                <span class="toggle-label">Split<span class="tooltip-icon"
+                    data-tooltip="Splits the video into separate files whenever a long silence is met.">?</span></span>
+              </label>
+            </div>
+            <div id="manualSplitGroup" style="flex:1; display:none;">
+              <label style="margin-bottom:2px;">Silence Gap<span class="tooltip-icon"
+                  data-tooltip="How long the silence must be to trigger a file split.">?</span></label>
+              <select id="manualSplitGap">
+                <option value="15000">15 sec</option>
+                <option value="30000">30 sec</option>
+                <option value="60000">1 min</option>
+                <option value="180000">3 min</option>
+                <option value="300000" selected>5 min</option>
+                <option value="600000">10 min</option>
+                <option value="1800000">30 min</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="col" style="flex: 1;">
+          <label class="toggle-container">
+            <div class="switch"><input type="checkbox" id="manualReview"><span class="slider"></span></div>
+            <span class="toggle-label">Review Mode</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:10px;">
+        <div class="col" style="flex: 1.5;">
+          <label class="toggle-container">
+            <div class="switch"><input type="checkbox" id="manualNorm"><span class="slider"></span></div>
+            <span class="toggle-label">Normalize Audio<span class="tooltip-icon"
+                data-tooltip="Normalizes the audio to a specific LUFS target. Warning: This requires re-encoding the audio track, which will increase batch completion time.">?</span></span>
+          </label>
+        </div>
+        <div id="manualNormTargetGroup" class="col" style="flex: 1; display:none;">
+          <select id="manualNormTarget">
+            <option value="-14">Web (-14 LUFS)</option>
+            <option value="-16">Podcast (-16 LUFS)</option>
+            <option value="-23">Broadcast TV (-23 LUFS)</option>
+          </select>
+        </div>
+        <div class="col" style="flex: 0.8;">
+          <label style="margin-bottom:5px;">Cut Buffer<span class="tooltip-icon"
+              data-tooltip="Time added before and after speech to prevent cutting words off.">?</span></label>
+          <select id="manualBuffer">
+            <option value="0">0s</option>
+            <option value="0.1">0.1s</option>
+            <option value="0.5" selected>0.5s (default)</option>
+            <option value="1.0">1.0s</option>
+            <option value="2.0">2.0s</option>
+            <option value="5.0">5.0s</option>
+            <option value="10.0">10s</option>
+          </select>
+        </div>
+        <div class="col" style="flex: 1;">
+          <input type="text" id="manualSuffix" value="_trimmed" placeholder="Suffix">
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:10px;">
+        <div class="col">
+          <label class="toggle-container">
+            <div class="switch"><input type="checkbox" id="manualFtpToggle"><span class="slider"></span></div>
+            <span class="toggle-label">Auto-Upload to FTP Upon Completion</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top: 15px;">
+        <button id="startBtn" class="primary" style="flex: 1;">Start Manual Batch</button>
+        <button id="abortBtn" class="danger" style="display:none; flex: 1;">Cancel Batch</button>
+      </div>
+    </div>
+
+    <div class="card" id="manualProgressCard" style="display:none;">
+      <div class="bar-header">
+        <span id="batchCount">Batch Progress</span>
+        <div style="margin-left: auto; display: flex; gap: 15px;">
+          <span id="elapsedDisplay" style="color:#888; font-family: monospace;"></span>
+          <span id="etcDisplay"></span>
+        </div>
+      </div>
+      <div class="progress-track">
+        <div id="batchBar" class="progress-fill fill-blue"></div>
+      </div>
+    </div>
+
+    <div class="list-container" id="manualQueueList">
+      <div style="padding:20px; text-align:center; color:#444;">No files loaded.</div>
+    </div>
+  </div>
+
+  <div id="viewAuto" class="mode-content">
+    <div class="card" id="autoCard">
+      <div class="row">
+        <div class="col">
+          <label>Watch Folder</label>
+          <div style="display:flex; gap:5px;">
+            <input type="text" id="watchPath" placeholder="Select folder..." readonly>
+            <button id="watchBtn" class="secondary" style="width:50px;">...</button>
+          </div>
+        </div>
+        <div class="col">
+          <label>Processed Folder</label>
+          <div style="display:flex; gap:5px;">
+            <input type="text" id="autoOutPath" placeholder="Select output..." readonly>
+            <button id="autoOutBtn" class="secondary" style="width:50px;">...</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:10px;">
+        <div class="col" style="flex: 1;">
+          <label style="margin-bottom:5px;">VAD Sensitivity<span class="tooltip-icon"
+              data-tooltip="Volume sensitivity (0.0 - 1.0). Higher means it ignores louder background noise.">?</span></label>
+          <select id="autoSensitivity">
+            <option value="0.3">Loose (0.3)</option>
+            <option value="0.5" selected>Standard (0.5)</option>
+            <option value="0.8">Strict (0.8)</option>
+            <option value="0.95">Aggressive (0.95)</option>
+          </select>
+        </div>
+
+        <div class="col" style="flex: 1.5;">
+          <div style="display:flex; align-items: flex-end; gap: 8px;">
+            <div style="flex:1">
+              <label class="toggle-container" style="margin-bottom:0;">
+                <div class="switch"><input type="checkbox" id="autoSplit"><span class="slider"></span></div>
+                <span class="toggle-label">Split<span class="tooltip-icon"
+                    data-tooltip="Splits the video into separate files whenever a long silence is met.">?</span></span>
+              </label>
+            </div>
+            <div id="autoSplitGroup" style="flex:1; display:none;">
+              <label style="margin-bottom:2px;">Silence Gap<span class="tooltip-icon"
+                  data-tooltip="How long the silence must be to trigger a file split.">?</span></label>
+              <select id="autoSplitGap">
+                <option value="15000">15 sec</option>
+                <option value="30000">30 sec</option>
+                <option value="60000">1 min</option>
+                <option value="180000">3 min</option>
+                <option value="300000" selected>5 min</option>
+                <option value="600000">10 min</option>
+                <option value="1800000">30 min</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="col" style="flex: 1;">
+          <label style="margin-bottom:5px;">Cut Buffer<span class="tooltip-icon"
+              data-tooltip="Time added before and after speech to prevent cutting words off.">?</span></label>
+          <select id="autoBuffer">
+            <option value="0">0s</option>
+            <option value="0.1">0.1s</option>
+            <option value="0.5" selected>0.5s (default)</option>
+            <option value="1.0">1.0s</option>
+            <option value="2.0">2.0s</option>
+            <option value="5.0">5.0s</option>
+            <option value="10.0">10s</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:10px;">
+        <div class="col" style="flex: 1.5;">
+          <label class="toggle-container">
+            <div class="switch"><input type="checkbox" id="autoNorm"><span class="slider"></span></div>
+            <span class="toggle-label">Normalize Audio<span class="tooltip-icon"
+                data-tooltip="Normalizes the audio to a specific LUFS target. Warning: This requires re-encoding the audio track, which will increase batch completion time.">?</span></span>
+          </label>
+        </div>
+        <div id="autoNormTargetGroup" class="col" style="flex: 1; display:none;">
+          <select id="autoNormTarget">
+            <option value="-14">Web (-14 LUFS)</option>
+            <option value="-16">Podcast (-16 LUFS)</option>
+            <option value="-23">Broadcast TV (-23 LUFS)</option>
+          </select>
+        </div>
+        <div class="col" style="flex: 1;">
+          <input type="text" id="autoSuffix" value="_trimmed" placeholder="Suffix">
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:10px;">
+        <div class="col">
+          <label class="toggle-container">
+            <div class="switch"><input type="checkbox" id="autoFtpToggle"><span class="slider"></span></div>
+            <span class="toggle-label">Auto-Upload to FTP Upon Completion</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="spacer" style="height:15px;"></div>
+      <button id="toggleAutoBtn" class="primary">Enable AutoPilot</button>
+      <div id="autoStatus" style="text-align:center; margin-top:10px; color:#666; font-size:0.9em;">System Offline</div>
+    </div>
+
+    <div class="list-container" id="autoQueueList">
+      <div style="padding:20px; text-align:center; color:#444;">Waiting for files...</div>
+    </div>
+  </div>
+
+  <div id="viewSettings" class="mode-content">
+    <div class="card">
+      <h3 style="margin-top:0; border-bottom: 1px solid #333; padding-bottom: 10px;">Processing Settings</h3>
+      <div class="row" style="margin-top: 15px;">
+        <div class="col" style="flex: 1;">
+          <label style="margin-bottom: 5px;">Max Concurrent Processes</label>
+          <select id="globalConcurrency">
+            <option value="1" selected>1 (Safe)</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4 (Fast)</option>
+          </select>
+        </div>
+        <div class="col" style="flex: 3;"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0; border-bottom: 1px solid #333; padding-bottom: 10px;">FTP Configuration</h3>
+      <div class="row" style="margin-top: 15px;">
+        <div class="col"><label>Host</label><input type="text" id="globalFtpHost" placeholder="ftp.example.com"></div>
+        <div class="col"><label>Username</label><input type="text" id="globalFtpUser" placeholder="user"></div>
+        <div class="col"><label>Password</label><input type="password" id="globalFtpPass" placeholder="pass"></div>
+        <div class="col" style="flex: 2;">
+          <label>Remote Path</label>
+          <div style="display:flex; gap:5px;">
+            <input type="text" id="globalFtpPath" placeholder="/public_html/videos" readonly>
+            <button class="secondary" onclick="openFtpBrowser('global')"
+              style="white-space:nowrap; width:auto; padding:0 15px;">Browse</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Move System Log here -->
+    <div class="card" style="flex: 1; display: flex; flex-direction: column;">
+      <div
+        style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 10px;">
+        <h3 style="margin:0;">System Log</h3>
+        <button id="exportLogBtn" class="secondary" style="width: auto; padding: 0 15px; height: 30px;">Export Log to
+          .txt</button>
+      </div>
+      <div class="list-container" id="systemLog"
+        style="height: 100%; background: #000; border:none; font-family: monospace;">
+        <div style="padding:10px; color:#444;">> Application started...</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="about-modal" class="modal">
+    <div class="modal-content" style="width: 400px; text-align: center; align-items: center;">
+      <img src="assets/SessionCutLogo.png" alt="SessionCut" style="width: 250px; margin-bottom: 5px;">
+      <h2 style="margin: 0;">SessionCut</h2>
+      <p id="about-version" style="color: #888; font-family: monospace; margin-top: 5px;">v...</p>
+      
+      <div id="updater-status-box" style="background: #111; border: 1px solid #333; border-radius: 6px; padding: 15px; width: 100%; box-sizing: border-box; margin-top: 15px; margin-bottom: 20px;">
+         <p id="updater-status-text" style="margin: 0; color: #ccc; font-size: 0.9em;">Click below to check for updates.</p>
+         <div id="updater-progress-track" class="progress-track" style="margin-top: 10px; display: none;">
+           <div id="updater-progress-fill" class="progress-fill fill-blue"></div>
+         </div>
+      </div>
+
+      <div style="display: flex; gap: 10px; width: 100%;">
+        <button class="secondary" onclick="closeAboutModal()" style="flex: 1;">Close</button>
+        <button id="btn-check-updates" class="primary" onclick="triggerUpdateCheck()" style="flex: 2;">Check for Updates</button>
+      </div>
+    </div>
+  </div>
+  <div id="review-modal" class="modal">
+    <div class="modal-content">
+      <h2>Review Cuts</h2>
+      <p id="review-filename" style="opacity: 0.7; margin-bottom: 10px;">filename.mp4</p>
+      <div style="background: #111; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center;">
+        <img id="review-waveform" src=""
+          style="width: 100%; height: 100px; object-fit: cover; border-radius: 4px; display: none;">
+        <div id="review-stats"
+          style="display: flex; justify-content: space-around; margin-top: 15px; font-size: 0.9em; color: #ccc;"></div>
+      </div>
+      <div id="review-segment-list" style="max-height: 200px; overflow-y: auto;"></div>
+      <div class="modal-actions">
+        <button class="btn secondary" onclick="handleReview(false)">Skip File</button>
+        <button class="btn primary" onclick="handleReview(true)">Approve & Cut</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="ftp-modal" class="modal">
+    <div class="modal-content" style="width: 500px;">
+      <h3 style="margin-top:0;">FTP Browser</h3>
+      <div style="font-size:0.9em; color:#888; margin-bottom:10px;">Current Path: <span id="ftp-current-path"
+          style="color:#fff;">/</span></div>
+      <div id="ftp-list-container" class="ftp-list">
+        <div style="padding:20px; text-align:center; color:#666;">Connecting...</div>
+      </div>
+      <div class="modal-actions">
+        <button class="secondary" onclick="closeFtpBrowser()">Cancel</button>
+        <button class="primary" onclick="confirmFtpSelection()">Select This Folder</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="norm-warning-modal" class="modal">
+    <div class="modal-content" style="width: 400px; border: 1px solid var(--yellow);">
+      <h3 style="margin-top:0; color:var(--yellow)">⚠️ Performance Warning</h3>
+      <p>Enabling audio normalization will significantly increase render time because the audio track must be
+        re-encoded.</p>
+      <div style="margin-top:15px;">
+        <label style="display:flex; align-items:center; cursor:pointer;">
+          <input type="checkbox" id="normWarningCheck" style="width:auto; height:auto; margin-right:10px;">
+          Do not show me this again
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button class="primary" onclick="closeNormWarning()">OK, I Understand</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+
+</html>
