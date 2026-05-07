@@ -1,0 +1,198 @@
+SessionCut End User License Agreement
+=====================================
+
+Copyright (c) 2026 Jonathan Hartwig. All rights reserved.
+
+IMPORTANT — READ CAREFULLY BEFORE INSTALLING OR USING THIS SOFTWARE.
+
+This End User License Agreement ("Agreement") is a legal agreement between you
+("Licensee", "you", or "your") and Jonathan Hartwig ("Licensor", "we", or "our")
+governing your use of the SessionCut software application, including any
+binaries, installers, source code, documentation, updates, and related materials
+made available by Licensor (collectively, the "Software").
+
+By downloading, installing, activating a license key for, or otherwise using the
+Software, you acknowledge that you have read this Agreement and agree to be
+bound by its terms. If you do not agree, do not install or use the Software.
+
+1. Grant of License
+-------------------
+
+Subject to your compliance with this Agreement and the timely payment of any
+fees established by Licensor (if any), Licensor grants you a limited,
+non-exclusive, non-transferable, non-sublicensable, revocable license to install
+and use the Software on a single computing device for which you have been issued
+a valid license key.
+
+License keys are issued at Licensor's sole discretion. Each license key is bound
+to one device on first activation. You may not share, lend, transfer, or
+otherwise disclose your license key to any third party.
+
+2. Restrictions
+---------------
+
+Except as expressly permitted by this Agreement or by applicable law that cannot
+be contractually waived, you shall not:
+
+(a) copy, redistribute, sell, rent, lease, sublicense, lend, time-share, or
+    otherwise transfer the Software or any portion thereof to any third party;
+(b) modify, adapt, translate, or create derivative works of the Software;
+(c) reverse engineer, decompile, disassemble, or otherwise attempt to derive the
+    source code, algorithms, or underlying ideas of the Software (except to the
+    extent that this restriction is unenforceable under applicable law, and only
+    after providing Licensor reasonable notice and an opportunity to provide an
+    accommodation);
+(d) remove, obscure, or alter any proprietary notices, labels, copyright marks,
+    or trademark notices on or in the Software;
+(e) use the Software to develop a competing product or service;
+(f) circumvent or attempt to circumvent any license activation, license recheck,
+    or other protection mechanism in the Software, or use the Software without a
+    valid, currently active license key;
+(g) use the Software in any way that violates applicable law, infringes any
+    third party's rights, or transmits content that you do not have the legal
+    right to process; or
+(h) use the Software to provide services to third parties (e.g., bureau,
+    service-bureau, or transcription-as-a-service offerings) without prior
+    written authorization from Licensor.
+
+3. License Activation, Recheck, and Telemetry
+---------------------------------------------
+
+The Software validates your license key with Licensor's licensing service on
+first activation and periodically thereafter. As part of this validation, the
+Software transmits your license key and a non-personally-identifying machine
+fingerprint (a hashed combination of hostname, network adapter address, and
+operating system identifiers) to the licensing service. No audio, video,
+transcript, or recording content is ever transmitted as part of license
+validation or any other automatic Software process.
+
+The Software is permitted to operate offline for a grace period after the most
+recent successful license recheck. Licensor reserves the right to revoke a
+license key at any time for material breach of this Agreement, which will cause
+the Software to refuse to launch on the next online recheck.
+
+4. Updates
+----------
+
+Licensor may, at its discretion, make updates, patches, bug fixes, and new
+versions of the Software available. Such updates may be installed automatically
+through the Software's auto-update mechanism. All such updates are subject to
+the terms of this Agreement (or any updated Agreement that accompanies the
+update).
+
+5. Ownership
+------------
+
+The Software is licensed, not sold. Licensor and its licensors retain all right,
+title, and interest in and to the Software, including all intellectual property
+rights therein. No rights are granted to you other than those expressly set
+forth in this Agreement.
+
+6. Third-Party Software
+-----------------------
+
+The Software incorporates or depends on third-party open-source software
+components, each of which is provided under its own license. A list of these
+components and their respective licenses is provided in DOCS/NOTICE.md within
+the Software's distribution. Your use of those components is governed by the
+terms of their respective licenses, which are not modified by this Agreement
+and which prevail over this Agreement to the extent of any conflict with
+respect to those components.
+
+7. Disclaimer of Warranties
+---------------------------
+
+THE SOFTWARE IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTY OF ANY
+KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, ACCURACY, NON-INFRINGEMENT,
+TITLE, AND ANY WARRANTIES ARISING FROM COURSE OF DEALING OR USAGE OF TRADE.
+
+LICENSOR DOES NOT WARRANT THAT THE SOFTWARE WILL BE ERROR-FREE, UNINTERRUPTED,
+SECURE, OR FREE FROM HARMFUL COMPONENTS, OR THAT IT WILL MEET YOUR REQUIREMENTS,
+PRODUCE ANY PARTICULAR RESULT, OR OPERATE WITH ANY SPECIFIC HARDWARE OR
+SOFTWARE NOT EXPLICITLY SUPPORTED. AUTOMATIC TRANSCRIPTION, SILENCE DETECTION,
+SPEAKER DIARIZATION, AND ANY OTHER MACHINE-LEARNING-BASED FEATURES ARE
+PROBABILISTIC AND MAY PRODUCE INACCURATE, INCOMPLETE, OR MISLEADING OUTPUT.
+YOU ARE SOLELY RESPONSIBLE FOR REVIEWING AND VERIFYING ANY OUTPUT BEFORE RELYING
+ON IT.
+
+YOU USE THE SOFTWARE AT YOUR OWN RISK.
+
+8. Limitation of Liability
+--------------------------
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT SHALL LICENSOR BE
+LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, EXEMPLARY, OR
+PUNITIVE DAMAGES, INCLUDING BUT NOT LIMITED TO LOST PROFITS, LOST DATA, LOST
+RECORDINGS, BUSINESS INTERRUPTION, OR PROCUREMENT OF SUBSTITUTE SERVICES,
+ARISING OUT OF OR RELATED TO YOUR USE OF OR INABILITY TO USE THE SOFTWARE,
+EVEN IF LICENSOR HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+
+LICENSOR'S TOTAL CUMULATIVE LIABILITY ARISING OUT OF OR RELATED TO THIS
+AGREEMENT OR THE SOFTWARE SHALL NOT EXCEED THE GREATER OF (a) THE AMOUNT YOU
+PAID TO LICENSOR FOR THE SOFTWARE IN THE TWELVE (12) MONTHS PRECEDING THE
+EVENT GIVING RISE TO THE CLAIM, OR (b) ONE HUNDRED U.S. DOLLARS ($100). THIS
+LIMITATION APPLIES REGARDLESS OF THE LEGAL THEORY ON WHICH ANY CLAIM IS BASED.
+
+Some jurisdictions do not allow the exclusion or limitation of incidental or
+consequential damages or implied warranties; in such jurisdictions Licensor's
+liability is limited to the maximum extent permitted by law.
+
+9. Indemnification
+------------------
+
+You agree to indemnify, defend, and hold harmless Licensor and its affiliates
+from and against any and all claims, damages, losses, liabilities, costs, and
+expenses (including reasonable attorneys' fees) arising out of or related to
+(a) your use of the Software in violation of this Agreement, (b) your violation
+of any law or third-party right, or (c) any content you process through the
+Software for which you do not hold the necessary rights or authorizations.
+
+10. Termination
+---------------
+
+This Agreement is effective until terminated. Licensor may terminate this
+Agreement and revoke your license at any time, with or without notice, if you
+breach any of its terms. Upon termination, you must immediately cease all use
+of the Software and destroy all copies in your possession or control.
+
+Sections 5 (Ownership), 6 (Third-Party Software), 7 (Disclaimer of Warranties),
+8 (Limitation of Liability), 9 (Indemnification), 10 (Termination), and 11
+(General) survive termination of this Agreement.
+
+11. General
+-----------
+
+(a) Entire Agreement. This Agreement, together with the third-party notices
+    referenced in Section 6, constitutes the entire agreement between you and
+    Licensor regarding the Software and supersedes all prior or contemporaneous
+    communications.
+
+(b) Modification. Licensor may modify this Agreement from time to time by
+    posting an updated version with a new effective date. Your continued use of
+    the Software after the effective date of any such update constitutes your
+    acceptance of the modified Agreement.
+
+(c) Severability. If any provision of this Agreement is held invalid or
+    unenforceable, that provision shall be modified only to the extent necessary
+    to make it enforceable, and the remaining provisions shall continue in full
+    force and effect.
+
+(d) No Waiver. The failure of Licensor to enforce any right or provision of this
+    Agreement shall not be deemed a waiver of such right or provision.
+
+(e) Assignment. You may not assign or transfer this Agreement or any of your
+    rights hereunder. Licensor may freely assign this Agreement.
+
+(f) Governing Law and Venue. This Agreement is governed by the laws of the
+    United States of America and the State of Texas, excluding its
+    conflicts-of-law principles. Any dispute arising out of or related to this
+    Agreement shall be brought exclusively in the state or federal courts
+    located in Dallas County, Texas, and the parties consent to the
+    personal jurisdiction of those courts.
+
+(g) Export Compliance. You agree to comply with all applicable export and
+    re-export control laws and regulations.
+
+(h) Contact. For licensing inquiries, contact: Jonathan Hartwig
+    (sessioncutapp@gmail.com)

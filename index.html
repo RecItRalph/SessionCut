@@ -32,6 +32,25 @@
       overflow: hidden;
     }
 
+    /* SCROLLBARS */
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #444;
+      border-radius: 5px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #555;
+    }
+
     /* HEADER & LAYOUT */
     .app-header {
       display: flex;
@@ -68,6 +87,12 @@
 
     .mode-content.active {
       display: flex;
+    }
+
+    /* Settings tab is a stack of cards — let it scroll when content exceeds viewport.
+       Other tabs scroll inside their list-container only. */
+    #viewSettings {
+      overflow-y: auto;
     }
 
     .card {
@@ -342,6 +367,7 @@
     .file-item {
       position: relative;
       display: block;
+      box-sizing: border-box;
       height: 50px;
       width: 100%;
       background: #1a1a1a;
@@ -779,31 +805,38 @@
     </div>
   </div>
 
-  <div class="tabs">
-    <div class="tab active" id="tabManual" onclick="switchTab('manual')">Manual Batch</div>
-    <div class="tab" id="tabAuto" onclick="switchTab('auto')">AutoPilot</div>
-    <div class="tab" id="tabSettings" onclick="switchTab('settings')">Settings</div>
+  <div class="tabs" style="justify-content: space-between; align-items: flex-end;">
+    <div style="display: flex; gap: 10px;">
+      <div class="tab active" id="tabManual" onclick="switchTab('manual')">Manual Batch</div>
+      <div class="tab" id="tabAuto" onclick="switchTab('auto')">AutoPilot</div>
+      <div class="tab" id="tabTranscription" onclick="switchTab('transcription')">Transcription & AI Audio</div>
+      <div class="tab" id="tabSettings" onclick="switchTab('settings')">Settings</div>
+    </div>
+
+    <div id="profileHeaderContainer"
+      style="display:flex; align-items:center; gap:8px; margin-bottom: 4px; margin-right: 5px;">
+      <label style="margin:0; font-size: 0.85em; color: #aaa;">Profile:</label>
+      <select id="presetSelect"
+        style="padding: 4px; font-size: 0.85em; background: #222; border: 1px solid #444; color: #ddd; border-radius: 4px; min-width: 140px;">
+        <option value="Custom">Custom Settings</option>
+      </select>
+      <button id="savePresetBtn" class="secondary"
+        style="padding: 4px 10px; font-size: 0.8em; height: 26px; width: auto; margin: 0; white-space: nowrap;">Save As
+        New</button>
+      <button id="deletePresetBtn" class="danger"
+        style="padding: 4px 10px; font-size: 0.8em; height: 26px; width: auto; margin: 0; white-space: nowrap; display:none;">Delete</button>
+    </div>
   </div>
 
   <div id="viewManual" class="mode-content active">
     <div class="card">
       <div class="row">
         <div class="col" style="flex: 2;">
-          <div class="row"
-            style="background: #111; padding: 10px; border-radius: 6px; border: 1px solid #333; margin-bottom: 15px;">
-            <div style="display:flex; align-items:center; width:100%; gap:10px;">
-              <label style="margin:0; min-width:60px;">Profile:</label>
-              <select id="presetSelect" style="flex:1;">
-                <option value="Custom">Custom Settings</option>
-              </select>
-              <button id="savePresetBtn" class="secondary" style="width:120px;">Save As New</button>
-              <button id="deletePresetBtn" class="danger" style="width:80px; display:none;">Delete</button>
-            </div>
-          </div>
-          <label>Input Videos</label>
+          <label>Input Files</label>
           <div style="display:flex; gap: 5px;">
-            <button id="addBtn" class="secondary" style="flex: 4;">+ Add Files</button>
-            <button id="clearBtn" class="secondary" style="flex: 1;">Clear</button>
+            <button id="addBtn" class="secondary" style="flex: 4;"
+              onclick="window.electronAPI.selectFiles().then(paths => { if(paths && paths.length) addToManualQueue(paths) })">+
+              Add Files</button>
           </div>
         </div>
         <div class="col" style="flex: 2;">
@@ -902,8 +935,9 @@
         </div>
       </div>
 
-      <div class="row" style="margin-top: 15px;">
-        <button id="startBtn" class="primary" style="flex: 1;">Start Manual Batch</button>
+      <div class="row" style="margin-top: 15px; display: flex; gap: 10px;">
+        <button id="startBtn" class="primary" style="flex: 3;">Start Manual Batch</button>
+        <button id="clearBtn" class="secondary" style="flex: 1;">Clear Queue</button>
         <button id="abortBtn" class="danger" style="display:none; flex: 1;">Cancel Batch</button>
       </div>
     </div>
@@ -1036,7 +1070,128 @@
     </div>
   </div>
 
+  <div id="viewTranscription" class="mode-content">
+    <div class="card">
+      <div class="row">
+        <div class="col" style="flex: 2;">
+          <label>Input Files</label>
+          <div style="display:flex; gap: 5px;">
+            <button id="addTransBtn" class="secondary" style="flex: 4;">+ Add Files</button>
+          </div>
+        </div>
+        <div class="col" style="flex: 2;">
+          <label>Output Folder</label>
+          <div style="display:flex; gap:5px;">
+            <input type="text" id="transOutPath" value="Same as source" readonly>
+            <button id="transOutBtn" class="secondary" style="width:50px;">...</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:10px;">
+        <div class="col" style="flex: 1.5;">
+          <label style="margin-bottom:5px;">Transcription Mode<span class="tooltip-icon"
+              data-tooltip="Speed: English-specialized turbo model (~810MB), 8x faster. Quality: full multilingual large-v3 model (~3GB), highest accuracy, slower. Models download on first use.">?</span></label>
+          <select id="transMode">
+            <option value="speed" selected>Speed (English, fast)</option>
+            <option value="quality">Quality (Multilingual, slower)</option>
+          </select>
+        </div>
+        <div class="col" style="flex: 1;">
+          <label style="margin-bottom:5px;">Output Format</label>
+          <select id="transFormat">
+            <option value="srt" selected>.SRT</option>
+            <option value="vtt">.VTT</option>
+            <option value="txt">.TXT</option>
+            <option value="json">.JSON</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:10px;">
+        <div class="col">
+          <label class="toggle-container">
+            <div class="switch"><input type="checkbox" id="transSpeakerDiarization"><span class="slider"></span></div>
+            <span class="toggle-label">Enable Speaker Diarization<span class="tooltip-icon"
+                data-tooltip="Detects speaker turns and auto-labels them with names extracted from contextual cues like 'Thank you, X', 'introduce X', and 'I'm X'. Unidentified speakers are labeled Speaker 1, Speaker 2, etc. English-only — overrides your Transcription Mode with the dedicated diarization model.">?</span></span>
+          </label>
+        </div>
+        <div class="col">
+          <label class="toggle-container">
+            <div class="switch"><input type="checkbox" id="transWordTimestamps"><span class="slider"></span></div>
+            <span class="toggle-label">Word-Level Timestamps<span class="tooltip-icon"
+                data-tooltip="One word per cue in SRT or VTT output (caption-style). No effect on TXT or JSON formats.">?</span></span>
+          </label>
+        </div>
+        <div class="col">
+          <label class="toggle-container">
+            <div class="switch"><input type="checkbox" id="transAdvancedToggle"><span class="slider"></span></div>
+            <span class="toggle-label">Show Advanced</span>
+          </label>
+        </div>
+      </div>
+
+      <div id="transAdvancedGroup" style="display:none;">
+        <div class="row" style="margin-top:10px;">
+          <div class="col">
+            <label class="toggle-container">
+              <div class="switch"><input type="checkbox" id="transProfanityFilter"><span class="slider"></span></div>
+              <span class="toggle-label">Profanity Censor (re-encodes audio)</span>
+            </label>
+          </div>
+          <div class="col" style="flex: 2;"></div>
+        </div>
+
+        <div class="row" id="transCensorGroup" style="margin-top:10px; display:none;">
+          <div class="col" style="flex: 1;">
+            <label style="margin-bottom:5px;">Censor Style</label>
+            <div style="display:flex; gap: 15px; margin-top: 8px;">
+              <label style="display:flex; align-items:center; gap:5px; color:#ccc;"><input type="radio" name="censorStyle"
+                  value="silence" checked> Silence</label>
+              <label style="display:flex; align-items:center; gap:5px; color:#ccc;"><input type="radio" name="censorStyle"
+                  value="bleep"> 1kHz Bleep</label>
+            </div>
+          </div>
+          <div class="col" style="flex: 2;">
+            <div style="display: flex; gap: 10px; margin-bottom: 8px;">
+              <label class="toggle-container" style="margin-bottom:0;">
+                <div class="switch"><input type="checkbox" id="transProfanityDefaultList" checked><span
+                    class="slider"></span></div>
+                <span class="toggle-label" style="font-size: 0.85em;">Use Default Censor List</span>
+              </label>
+            </div>
+            <label>Profanity List (Custom comma-separated words)</label>
+            <input type="text" id="transProfanityList">
+          </div>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top: 15px; display: flex; gap: 10px;">
+        <button id="startTransBtn" class="primary" style="flex: 3;">Start AI Processing</button>
+        <button id="clearTransBtn" class="secondary" style="flex: 1;">Clear Queue</button>
+      </div>
+    </div>
+
+    <div class="card" id="transProgressCard" style="display:none;">
+      <div class="bar-header">
+        <span id="transBatchCount">Batch Progress</span>
+        <div style="margin-left: auto; display: flex; gap: 15px;">
+          <span id="transElapsedDisplay" style="color:#888; font-family: monospace;"></span>
+          <span id="transEtcDisplay"></span>
+        </div>
+      </div>
+      <div class="progress-track">
+        <div id="transBatchBar" class="progress-fill fill-blue"></div>
+      </div>
+    </div>
+
+    <div class="list-container" id="transcriptionQueueList">
+      <div style="padding:20px; text-align:center; color:#444;">No files loaded for transcription.</div>
+    </div>
+  </div>
+
   <div id="viewSettings" class="mode-content">
+
     <div class="card">
       <h3 style="margin-top:0; border-bottom: 1px solid #333; padding-bottom: 10px;">Processing Settings</h3>
       <div class="row" style="margin-top: 15px;">
@@ -1050,6 +1205,36 @@
           </select>
         </div>
         <div class="col" style="flex: 3;"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0; border-bottom: 1px solid #333; padding-bottom: 10px;">Speech Detection (Advanced)</h3>
+      <div class="row" style="margin-top: 15px;">
+        <div class="col" style="flex: 1;">
+          <label style="margin-bottom: 5px;">Speech Merge Gap<span class="tooltip-icon"
+              data-tooltip="Bridges short pauses inside a single talk. Lower if a continuous talk is being split unexpectedly; higher if distinct talks are being merged together.">?</span></label>
+          <select id="speechMergeGap">
+            <option value="5">5 sec</option>
+            <option value="10">10 sec</option>
+            <option value="30" selected>30 sec (default)</option>
+            <option value="60">60 sec</option>
+            <option value="120">2 min</option>
+          </select>
+        </div>
+        <div class="col" style="flex: 1;">
+          <label style="margin-bottom: 5px;">Min Clip Duration<span class="tooltip-icon"
+              data-tooltip="Clips shorter than this are dropped — filters music/noise that VAD mistakes for speech. Lower for content with short utterances; set to Off to disable.">?</span></label>
+          <select id="minClipDuration">
+            <option value="0">Off</option>
+            <option value="5">5 sec</option>
+            <option value="15">15 sec</option>
+            <option value="30" selected>30 sec (default)</option>
+            <option value="60">60 sec</option>
+            <option value="120">2 min</option>
+          </select>
+        </div>
+        <div class="col" style="flex: 2;"></div>
       </div>
     </div>
 
@@ -1090,17 +1275,20 @@
       <img src="assets/SessionCutLogo.png" alt="SessionCut" style="width: 250px; margin-bottom: 5px;">
       <h2 style="margin: 0;">SessionCut</h2>
       <p id="about-version" style="color: #888; font-family: monospace; margin-top: 5px;">v...</p>
-      
-      <div id="updater-status-box" style="background: #111; border: 1px solid #333; border-radius: 6px; padding: 15px; width: 100%; box-sizing: border-box; margin-top: 15px; margin-bottom: 20px;">
-         <p id="updater-status-text" style="margin: 0; color: #ccc; font-size: 0.9em;">Click below to check for updates.</p>
-         <div id="updater-progress-track" class="progress-track" style="margin-top: 10px; display: none;">
-           <div id="updater-progress-fill" class="progress-fill fill-blue"></div>
-         </div>
+
+      <div id="updater-status-box"
+        style="background: #111; border: 1px solid #333; border-radius: 6px; padding: 15px; width: 100%; box-sizing: border-box; margin-top: 15px; margin-bottom: 20px;">
+        <p id="updater-status-text" style="margin: 0; color: #ccc; font-size: 0.9em;">Click below to check for updates.
+        </p>
+        <div id="updater-progress-track" class="progress-track" style="margin-top: 10px; display: none;">
+          <div id="updater-progress-fill" class="progress-fill fill-blue"></div>
+        </div>
       </div>
 
       <div style="display: flex; gap: 10px; width: 100%;">
         <button class="secondary" onclick="closeAboutModal()" style="flex: 1;">Close</button>
-        <button id="btn-check-updates" class="primary" onclick="triggerUpdateCheck()" style="flex: 2;">Check for Updates</button>
+        <button id="btn-check-updates" class="primary" onclick="triggerUpdateCheck()" style="flex: 2;">Check for
+          Updates</button>
       </div>
     </div>
   </div>

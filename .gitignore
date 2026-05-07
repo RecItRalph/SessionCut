@@ -7,3 +7,10 @@ build_env/
 __pycache__/
 build/
 py_dist/
+# Whisper models — too large for the repo, intended to be downloaded on demand.
+models/
+# Whisper binary directory — local dev path; shipped builds don't include it.
+bin/
+# Untracked dev scratch
+scratch/
+scratch.js
