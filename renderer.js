@@ -990,6 +990,7 @@ ui.startBtn.addEventListener('click', async () => {
     ui.startBtn.innerText = "Start Manual Batch"; // Reset label
     // --- END PRE-CHECK ---
 
+    manualBatchAborted = false; // fresh batch — clear any prior cancel flag
     toggleLock(true);
     startBatchTimer();
 
@@ -1081,9 +1082,11 @@ ui.startTransBtn.addEventListener('click', () => {
         profanityList: ui.transProfanityList.value
     };
 
+    transBatchAborted = false; // fresh batch — clear any prior cancel flag
     ui.transProgressCard.style.display = 'block';
     ui.transBatchBar.style.width = '0%';
     ui.startTransBtn.style.display = 'none';
+    ui.clearTransBtn.disabled = true;
 
     window.electronAPI.startTranscription(config);
 });
@@ -1099,11 +1102,26 @@ window.removeFile = (id) => {
         if (!manualQueue.length) {
             renderManualQueue();
             hideBatchBar();
+            // If we emptied the visible queue while a batch was actually processing, treat
+            // as cancellation. The main-process batch loop will quietly skip the rest via
+            // manualSkippedIds; flagging here suppresses the eventual fake "Complete".
+            if (ui.abortBtn.style.display === 'inline-block') {
+                manualBatchAborted = true;
+                showToast('Queue cleared — batch cancelled', 'warn');
+                resetProgress();
+            }
         }
     } else if (id.startsWith('trans-')) {
         transcriptionQueue = transcriptionQueue.filter(i => i.id !== id);
         if (!transcriptionQueue.length) {
             renderTranscriptionQueue();
+            // Same logic for the transcription side: if processing card is visible we
+            // were in the middle of a batch, so treat the empty-queue as cancellation.
+            if (ui.transProgressCard.style.display !== 'none') {
+                transBatchAborted = true;
+                showToast('Queue cleared — transcription cancelled', 'warn');
+                resetTransUI();
+            }
         }
     }
 };
@@ -1199,6 +1217,15 @@ window.electronAPI.onFileProgress(({ id, mode, percent, text }) => {
     if (percent === 100) progressResetTimer = setTimeout(() => globalInd.style.display = 'none', 2000);
 });
 
+// Tracks whether the user (or the main process) cancelled the active batch. The
+// trailing batch-update IPC sometimes arrives AFTER abort-processing fires
+// (the in-flight processSingleFile finishes its catch + completedCount++ before
+// the next loop iteration sees isAborted). When that happens, total === completed
+// and the renderer would otherwise show "Batch Complete" even though it was cancelled.
+// Reset to false when a new batch starts.
+let manualBatchAborted = false;
+let transBatchAborted = false;
+
 window.electronAPI.onBatchUpdate(({ total, completed, etc }) => {
     const pct = (total > 0) ? Math.round((completed / total) * 100) : 0;
     ui.batchBar.style.width = `${pct}%`;
@@ -1207,11 +1234,15 @@ window.electronAPI.onBatchUpdate(({ total, completed, etc }) => {
     ui.etcDisplay.innerText = etc ? `ETA: ${etc}` : '';
 
     if (total > 0 && total === completed) {
+        if (manualBatchAborted) {
+            // Suppress the "Complete" message — onBatchAborted already showed
+            // a Cancelled toast and reset the UI.
+            return;
+        }
         ui.etcDisplay.innerText = 'Complete';
-
         showToast('Batch Complete', 'success');
         // System-level notification is fired from main process (showSystemNotification)
-        // and only when the window isn't focused — keeps the in-app toast above sufficient.
+        // and only when the window isn't focused — the in-app toast above is sufficient.
         stopBatchTimer();
 
         setTimeout(() => {
@@ -1229,18 +1260,15 @@ window.electronAPI.onTransBatchUpdate(({ total, completed, etc }) => {
     ui.transEtcDisplay.innerText = etc ? `ETA: ${etc}` : '';
 
     if (total > 0 && total === completed) {
+        if (transBatchAborted) {
+            return;
+        }
         ui.transEtcDisplay.innerText = 'Complete';
-
         showToast('Transcription Complete', 'success');
         // System-level notification handled in main process — see showSystemNotification.
 
         setTimeout(() => {
-            document.querySelectorAll('.file-progress-layer').forEach(b => b.style.width = '0%');
-            ui.transBatchBar.style.width = '0%';
-            ui.transBatchCount.innerText = 'Batch Progress';
-            ui.transProgressCard.style.display = 'none';
-            ui.transEtcDisplay.innerText = '';
-            ui.startTransBtn.style.display = 'inline-block';
+            resetTransUI();
         }, 2000);
     }
 });
@@ -1258,19 +1286,29 @@ function resetProgress() {
     toggleLock(false);
 }
 
-window.electronAPI.onBatchAborted(() => {
-    resetProgress();
-    hideBatchBar();
-    addLog('Batch Aborted', 'error');
-    document.getElementById('globalIndicator').style.display = 'none';
-
-    // Also reset transcription
+// Resets transcription tab UI to its idle state. Used by completion, abort, and
+// the queue-emptied-mid-batch path so the start button comes back consistently.
+function resetTransUI() {
     document.querySelectorAll('.file-progress-layer').forEach(b => b.style.width = '0%');
     ui.transBatchBar.style.width = '0%';
     ui.transBatchCount.innerText = 'Batch Progress';
     ui.transProgressCard.style.display = 'none';
     ui.transEtcDisplay.innerText = '';
     ui.startTransBtn.style.display = 'inline-block';
+    ui.clearTransBtn.disabled = false;
+}
+
+window.electronAPI.onBatchAborted(() => {
+    manualBatchAborted = true;
+    transBatchAborted = true;
+    resetProgress();
+    hideBatchBar();
+    showToast('Batch Cancelled', 'warn');
+    addLog('Batch Cancelled', 'warn');
+    document.getElementById('globalIndicator').style.display = 'none';
+
+    // Also reset transcription tab UI in case the abort came from there.
+    resetTransUI();
 });
 window.electronAPI.onLogEntry(({ msg, type }) => addLog(msg, type));
 

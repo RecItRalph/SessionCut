@@ -1,6 +1,6 @@
 {
   "name": "SessionCut",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "An AI-powered auto-editor to automatically trim silences.",
   "author": "Jonathan Hartwig",
   "main": "main.js",
@@ -55,6 +55,7 @@
       "category": "public.app-category.video",
       "hardenedRuntime": false,
       "icon": "assets/SessionCutIcon.icns",
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
       "extraResources": [
         {
           "from": "assets/silero_vad.onnx",
@@ -76,6 +77,7 @@
     },
     "win": {
       "target": "nsis",
+      "icon": "assets/SessionCutLogoSquare.png",
       "extraResources": [
         {
           "from": "assets/silero_vad.onnx",

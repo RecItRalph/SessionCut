@@ -4,10 +4,56 @@ All notable changes to SessionCut are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.0.1] — 2026-05-08
 
-The accumulated work from the v1.0.0-prep development cycle. This will become
-v1.0.0 on the first published release.
+First post-launch update. Round of bug fixes from v1.0.0 testing plus the Intel
+Mac build that was missing from the initial release.
+
+### Added
+
+- **macOS Intel (x64) build.** The release workflow now produces a separate
+  `SessionCut-1.0.1-x64.dmg` for Intel Macs alongside the existing arm64 DMG.
+  Auto-update on Apple Silicon continues to consume the arm64 manifest as before.
+- **Check for Updates...** menu entry. On macOS it lives in the SessionCut app
+  menu, on Windows/Linux in the Help menu. Equivalent to the existing button
+  inside the About dialog.
+- **Window-close confirmation when processing is active.** Closing the main
+  window while a batch is in progress now prompts whether to keep processing in
+  the background, cancel and quit, or stay open. Idle close behavior unchanged
+  (silent hide-to-tray, with a one-time first-launch reminder).
+
+### Fixed
+
+- **Transcription file removal didn't actually stop whisper.** The whisper
+  process and the audio-extraction ffmpeg process weren't tracked anywhere, so
+  clicking the X on a file mid-transcription marked the row aborted but left
+  the underlying process running. Both are now registered with the active-jobs
+  map; remove-item kills them immediately.
+- **"Batch Complete" notification firing on cancel.** When the user cancelled
+  a Manual Batch (or all files were removed mid-batch), a trailing batch-update
+  IPC was arriving after the abort and tripping the renderer's
+  `total === completed` complete-message branch. The renderer now tracks an
+  abort flag and suppresses the false completion. Replaced with "Batch
+  Cancelled" / "Queue cleared — batch cancelled" toasts.
+- **Transcription tab stuck in processing state after queue emptied mid-batch.**
+  Removing all files mid-batch left the Start button hidden and the progress
+  card visible. Now resets the tab to its idle state immediately when the
+  visible queue empties during processing.
+- **Windows window icon was the default Electron icon.** `BrowserWindow.icon`
+  was pointing to `assets/logo.png`, a file that doesn't exist. Fixed to use
+  `assets/SessionCutLogoSquare.png` for the running window, and added
+  `build/icon.png` (1024x1024) so electron-builder generates a proper Windows
+  installer + taskbar icon.
+
+### Changed
+
+- **Mac DMG file naming** now always includes the architecture suffix —
+  `SessionCut-1.0.1-arm64.dmg` and `SessionCut-1.0.1-x64.dmg` — so teammates
+  don't have to guess which file is for their machine.
+- **Clear Queue button on the Transcription tab** is now disabled during a
+  running batch (matching Manual Batch's behavior).
+
+## [1.0.0] — 2026-05-07
 
 ### Added
 

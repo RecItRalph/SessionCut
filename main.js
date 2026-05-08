@@ -104,7 +104,7 @@ function createWindow() {
     height: mainWindowState.height,
     minWidth: 800, minHeight: 600,
     backgroundColor: '#1e1e1e',
-    icon: path.join(__dirname, 'assets/logo.png'),
+    icon: path.join(__dirname, 'assets', 'SessionCutLogoSquare.png'),
     webPreferences: { nodeIntegration: false, contextIsolation: true, preload: path.join(__dirname, 'preload.js') }
   });
 
@@ -112,11 +112,54 @@ function createWindow() {
 
   win.loadFile('index.html');
 
+  // Track whether we've shown the "minimized to tray" reminder yet — once per app launch.
+  let trayReminderShown = false;
+
   win.on('close', (event) => {
-    if (!isQuitting) {
-      event.preventDefault();
-      win.hide();
-      return false;
+    if (isQuitting) return; // user explicitly chose Quit, let it proceed
+
+    event.preventDefault();
+
+    // If anything is actively processing, prompt before backgrounding so the user
+    // doesn't think they cancelled when they only closed the window.
+    const hasActiveWork = activeVadJobs.size > 0 || activeFfmpegs.size > 0 ||
+                          autoQueue.length > 0 || isAutoProcessing;
+    if (hasActiveWork) {
+      const choice = dialog.showMessageBoxSync(win, {
+        type: 'question',
+        buttons: ['Continue in Background', 'Cancel and Quit', 'Stay Open'],
+        defaultId: 0,
+        cancelId: 2,
+        title: 'Processing in progress',
+        message: 'SessionCut is still processing files.',
+        detail: 'Closing the window keeps the app running in the system tray and processing continues. Choose "Cancel and Quit" to stop the active jobs and exit.',
+      });
+      if (choice === 1) {
+        // Cancel + Quit — tear down active jobs first, then exit.
+        isAborted = true;
+        for (const proc of activeVadJobs.values()) { try { proc.kill(); } catch (_) {} }
+        for (const cmd of activeFfmpegs.values()) {
+          if (cmd && typeof cmd.kill === 'function') { try { cmd.kill(); } catch (_) {} }
+        }
+        activeVadJobs.clear();
+        activeFfmpegs.clear();
+        isQuitting = true;
+        app.quit();
+        return;
+      }
+      if (choice === 2) return; // Stay Open — do nothing, window stays focused
+      // Otherwise: fall through to "hide to tray" below.
+    }
+
+    win.hide();
+    // First-close hint that we're still around — once per launch, only when idle.
+    if (!trayReminderShown && !hasActiveWork) {
+      trayReminderShown = true;
+      showSystemNotification(
+        'SessionCut is still running',
+        'The app is in your system tray. Click its icon to bring it back, or right-click → Quit to exit fully.',
+        { force: true }
+      );
     }
   });
 
@@ -204,7 +247,20 @@ function createAppMenu() {
         { role: 'zoom' },
         { label: 'Close to Tray', accelerator: 'CmdOrCtrl+W', click: () => win.hide() }
       ]
-    }
+    },
+    {
+      label: 'Help',
+      submenu: [
+        {
+          label: 'Check for Updates...',
+          click: () => {
+            autoUpdater.checkForUpdatesAndNotify().catch((err) => {
+              if (win) win.webContents.send('updater-event', { type: 'error', error: err.message });
+            });
+          },
+        },
+      ],
+    },
   ];
 
   if (process.platform === 'darwin') {
@@ -213,6 +269,14 @@ function createAppMenu() {
       submenu: [
         { role: 'about' },
         { type: 'separator' },
+        {
+          label: 'Check for Updates...',
+          click: () => {
+            autoUpdater.checkForUpdatesAndNotify().catch((err) => {
+              if (win) win.webContents.send('updater-event', { type: 'error', error: err.message });
+            });
+          },
+        },
         {
           label: 'Preferences...',
           accelerator: 'CmdOrCtrl+,',
@@ -1095,8 +1159,10 @@ async function extractAudio16k(videoPath, tempWavPath, uiIndex) {
     const cmd = ffmpeg(videoPath)
       .outputOptions(['-ar 16000', '-ac 1', '-c:a pcm_s16le', '-y'])
       .on('progress', p => { if (p.percent) win.webContents.send('file-progress', { id: uiIndex, mode: 'scanning', percent: Math.round(p.percent), text: `Extracting Audio` }); })
-      .on('end', () => resolve())
-      .on('error', err => reject(err));
+      .on('end', () => { activeFfmpegs.delete(uiIndex); resolve(); })
+      .on('error', err => { activeFfmpegs.delete(uiIndex); reject(err); });
+    // Track the active extraction so the remove-item / abort handlers can kill it.
+    activeFfmpegs.set(uiIndex, cmd);
     cmd.save(tempWavPath);
   });
 }
@@ -1300,6 +1366,11 @@ async function processTranscriptionSingle(filePath, uiIndex, config) {
     await new Promise((resolve, reject) => {
       // Pipe stderr to capture progress, drop stdout to prevent buffer deadlock
       const proc = spawn(actualWhisper, args, { stdio: ['ignore', 'ignore', 'pipe'] });
+      // Track the running whisper proc so remove-item / abort can kill it. We reuse
+      // activeFfmpegs because both the abort handler and remove-item already iterate
+      // it and call .kill() — both ChildProcess (whisper) and FluentFFmpeg commands
+      // expose a .kill() method.
+      activeFfmpegs.set(uiIndex, proc);
       // Whisper prints progress to stderr usually
       proc.stderr.on('data', d => {
         const out = d.toString();
@@ -1313,10 +1384,14 @@ async function processTranscriptionSingle(filePath, uiIndex, config) {
         }
       });
       proc.on('close', code => {
+        activeFfmpegs.delete(uiIndex);
+        if (manualSkippedIds.has(uiIndex) || isAborted) {
+          return reject(new Error('Aborted'));
+        }
         if (code !== 0) reject(new Error(`Whisper exited with ${code}`));
         else resolve();
       });
-      proc.on('error', err => reject(err));
+      proc.on('error', err => { activeFfmpegs.delete(uiIndex); reject(err); });
     });
 
     if (isAborted) throw new Error('Aborted');

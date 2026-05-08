@@ -4,22 +4,28 @@
 #   1. Bump the version in package.json (e.g. "1.0.1").
 #   2. Commit and push.
 #   3. Tag and push the tag:  git tag v1.0.1 && git push origin v1.0.1
-#   4. This workflow runs Mac and Windows builds in parallel and publishes
-#      both installers to a draft GitHub Release on this repo.
+#   4. This workflow runs Mac (arm64), Mac (x64 / Intel), and Windows builds and
+#      publishes installers to a draft GitHub Release on this repo.
 #   5. Visit the Releases page, edit the draft, write notes, and Publish.
 #
-# Auto-update is wired through electron-updater pointed at this repo's Releases,
-# so once a release is published, every previously-installed copy of the app
-# notices the update on next launch and downloads it.
+# Build-job sequencing on Mac:
+#   - The arm64 job runs first and publishes the DMG + latest-mac.yml (the auto-
+#     update manifest) to the draft release.
+#   - The x64 (Intel) job waits for arm64, builds, then uploads ONLY its DMG to
+#     the same draft release. It does NOT publish a manifest, because the manifest
+#     electron-updater consumes is shared across architectures and the arm64
+#     manifest already references both DMGs by file naming convention.
+#
+# Auto-update is wired through electron-updater pointed at this repo's Releases.
+# Once published, every installed copy notices on next launch.
 #
 # Notes:
 #   - GITHUB_TOKEN is provided automatically; no secrets to configure.
-#   - Mac builds are unsigned (no Apple Developer cert); first launch needs
-#     right-click → Open to bypass Gatekeeper. Windows is unsigned similarly;
-#     SmartScreen will warn until the binary builds reputation.
-#   - Whisper-cli ships in shipped builds: compiled from source on Mac (with
-#     Metal acceleration), prebuilt download on Windows. Whisper *models* are
-#     downloaded on first use into userData/models, NOT bundled (1+ GB each).
+#   - Mac + Windows builds are unsigned. First launch shows OS warnings; see
+#     DOCS/INSTALL.md for the right-click-Open / SmartScreen workarounds.
+#   - Whisper-cli ships compiled from source on Mac (with Metal accel), prebuilt
+#     on Windows. Whisper *models* are downloaded on first use into userData;
+#     they are NOT bundled (~547MB to ~3GB depending on mode).
 
 name: Release
 
@@ -35,27 +41,17 @@ env:
   WHISPER_VERSION: '1.8.4'
 
 jobs:
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+  build-mac-arm64:
+    runs-on: macos-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
+      - run: npm ci
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Compile whisper-cli with Metal (macOS)
-        if: matrix.os == 'macos-latest'
+      - name: Compile whisper-cli (arm64 + Metal)
         run: |
           set -euo pipefail
           mkdir -p bin
@@ -65,11 +61,61 @@ jobs:
           cmake --build build --config Release -j --target whisper-cli
           cp build/bin/whisper-cli ../bin/whisper
           chmod +x ../bin/whisper
-          ../bin/whisper --help | head -3
-          cd ..
 
-      - name: Download whisper-cli prebuilt (Windows)
-        if: matrix.os == 'windows-latest'
+      - name: Build + publish (arm64 DMG + manifest)
+        run: npx electron-builder --mac --arm64 --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-mac-x64:
+    needs: build-mac-arm64
+    runs-on: macos-13   # GitHub's Intel Mac runner. Deprecation date — TBD; revisit if removed.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+
+      - name: Compile whisper-cli (x64 + Metal)
+        run: |
+          set -euo pipefail
+          mkdir -p bin
+          curl -fsSL "https://github.com/ggerganov/whisper.cpp/archive/refs/tags/v${WHISPER_VERSION}.tar.gz" | tar xz
+          cd "whisper.cpp-${WHISPER_VERSION}"
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DGGML_METAL=ON -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_EXAMPLES=ON
+          cmake --build build --config Release -j --target whisper-cli
+          cp build/bin/whisper-cli ../bin/whisper
+          chmod +x ../bin/whisper
+
+      - name: Build x64 DMG (no publish — uploaded manually below)
+        run: npx electron-builder --mac --x64 --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload x64 DMG to draft release
+        run: |
+          set -euo pipefail
+          DMG=$(ls dist/*.dmg | head -1)
+          echo "Uploading $DMG to release ${GITHUB_REF_NAME}"
+          # --clobber replaces any same-named existing asset; the arm64 job published a
+          # different file name (with -arm64 suffix) so there's nothing to collide with.
+          gh release upload "${GITHUB_REF_NAME}" "$DMG" --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-win:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+
+      - name: Download whisper-cli prebuilt
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -77,20 +123,17 @@ jobs:
           $url = "https://github.com/ggerganov/whisper.cpp/releases/download/v$env:WHISPER_VERSION/whisper-bin-x64.zip"
           Invoke-WebRequest -Uri $url -OutFile whisper-bin.zip
           Expand-Archive -Path whisper-bin.zip -DestinationPath whisper-tmp -Force
-          # The zip layout has shifted across releases — accept either name.
           $exe = Get-ChildItem -Path whisper-tmp -Filter 'whisper-cli.exe' -Recurse | Select-Object -First 1
           if ($null -eq $exe) {
             $exe = Get-ChildItem -Path whisper-tmp -Filter 'main.exe' -Recurse | Select-Object -First 1
           }
           if ($null -eq $exe) { throw 'whisper-cli.exe not found in archive' }
           Copy-Item $exe.FullName bin/whisper.exe
-          # Some prebuilt zips also bundle ggml*.dll alongside the exe — copy them.
           Get-ChildItem -Path $exe.Directory -Filter '*.dll' | ForEach-Object {
             Copy-Item $_.FullName bin/
           }
-          Get-ChildItem bin/
 
       - name: Build and publish
-        run: npx electron-builder --publish always
+        run: npx electron-builder --win --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
