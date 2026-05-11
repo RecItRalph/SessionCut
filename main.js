@@ -105,8 +105,15 @@ function createWindow() {
     minWidth: 800, minHeight: 600,
     backgroundColor: '#1e1e1e',
     icon: path.join(__dirname, 'assets', 'SessionCutLogoSquare.png'),
+    // Explicit menu-bar visibility on Windows — without this, Win 11 with certain
+    // theming hides the menu bar entirely and requires Alt to surface it. Mac is
+    // unaffected (the menu lives at the top of the screen regardless).
+    autoHideMenuBar: false,
     webPreferences: { nodeIntegration: false, contextIsolation: true, preload: path.join(__dirname, 'preload.js') }
   });
+  if (process.platform === 'win32') {
+    win.setMenuBarVisibility(true);
+  }
 
   mainWindowState.manage(win);
 
@@ -252,6 +259,10 @@ function createAppMenu() {
       label: 'Help',
       submenu: [
         {
+          label: 'About SessionCut',
+          click: () => { if (win) win.webContents.send('menu-about'); },
+        },
+        {
           label: 'Check for Updates...',
           click: () => {
             autoUpdater.checkForUpdatesAndNotify().catch((err) => {
@@ -267,7 +278,13 @@ function createAppMenu() {
     template.unshift({
       label: app.name,
       submenu: [
-        { role: 'about' },
+        // Use our custom About modal (same UX as the version-tag click in the app
+        // header) instead of Electron's built-in About panel — keeps "About" looking
+        // the same on Mac and Windows.
+        {
+          label: 'About SessionCut',
+          click: () => { if (win) win.webContents.send('menu-about'); },
+        },
         { type: 'separator' },
         {
           label: 'Check for Updates...',

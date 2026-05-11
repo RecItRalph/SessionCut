@@ -198,6 +198,7 @@ window.electronAPI.onMenuAddFiles(() => ui.addBtn.click());
 window.electronAPI.onMenuStartBatch(() => ui.startBtn.click());
 window.electronAPI.onMenuClearQueue(() => ui.clearBtn.click());
 window.electronAPI.onMenuPreferences(() => switchTab('settings'));
+if (window.electronAPI.onMenuAbout) window.electronAPI.onMenuAbout(() => window.openAboutModal && window.openAboutModal());
 
 window.electronAPI.onAddExternalFile((path) => {
     addToManualQueue([path]);

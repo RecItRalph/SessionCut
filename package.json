@@ -1,6 +1,6 @@
 {
   "name": "SessionCut",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "An AI-powered auto-editor to automatically trim silences.",
   "author": "Jonathan Hartwig",
   "main": "main.js",

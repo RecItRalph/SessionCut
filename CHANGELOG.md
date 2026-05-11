@@ -4,6 +4,36 @@ All notable changes to SessionCut are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.2] — 2026-05-11
+
+Quick follow-up to v1.0.1 to fix the missing Windows menu and split the Intel
+Mac build out of the routine release flow.
+
+### Added
+
+- **About SessionCut** menu item — visible in the SessionCut app menu on macOS
+  and in the Help menu on Windows. Opens the same About dialog the version tag
+  in the app header already opens, on both platforms (replaces the Mac-only
+  `role: 'about'` panel for consistency).
+
+### Fixed
+
+- **Windows menu bar (File / View / Window / Help) was hidden by default on
+  certain Win 11 configurations.** Explicitly set `autoHideMenuBar: false` on
+  the BrowserWindow and call `setMenuBarVisibility(true)` on Win launch so the
+  bar surfaces without requiring Alt.
+
+### Changed
+
+- **Intel Mac build moved off the tag-push trigger.** GitHub's `macos-13`
+  runner is heavily capacity-constrained in 2026 and routinely queues for
+  hours, blocking the rest of the release flow. Tag pushes now build only
+  arm64 + Win (fast — typically < 10 minutes total). The Intel DMG is now
+  built via a manual **Run workflow** action from the GitHub Actions tab, with
+  the tag as an input; it uploads to the existing release when it eventually
+  completes. See the comments at the top of `.github/workflows/release.yml`
+  for the exact steps.
+
 ## [1.0.1] — 2026-05-08
 
 First post-launch update. Round of bug fixes from v1.0.0 testing plus the Intel

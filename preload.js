@@ -45,6 +45,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onMenuStartBatch: (callback) => ipcRenderer.on('menu-start-batch', () => callback()),
   onMenuClearQueue: (callback) => ipcRenderer.on('menu-clear-queue', () => callback()),
   onMenuPreferences: (callback) => ipcRenderer.on('menu-preferences', () => callback()),
+  onMenuAbout: (callback) => ipcRenderer.on('menu-about', () => callback()),
   onAddExternalFile: (callback) => ipcRenderer.on('add-external-file', (event, path) => callback(path)),
 
   // NEW: Data & Config

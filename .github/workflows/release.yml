@@ -1,20 +1,21 @@
 # Cross-platform build and publish for SessionCut.
 #
-# How to cut a release:
-#   1. Bump the version in package.json (e.g. "1.0.1").
+# How to cut a routine release:
+#   1. Bump the version in package.json (e.g. "1.0.2").
 #   2. Commit and push.
-#   3. Tag and push the tag:  git tag v1.0.1 && git push origin v1.0.1
-#   4. This workflow runs Mac (arm64), Mac (x64 / Intel), and Windows builds and
-#      publishes installers to a draft GitHub Release on this repo.
-#   5. Visit the Releases page, edit the draft, write notes, and Publish.
+#   3. Tag and push the tag:  git tag v1.0.2 && git push origin v1.0.2
+#   4. Mac (arm64) + Windows builds run in parallel and publish to a draft GitHub
+#      Release on this repo. Visit the Releases page, edit, write notes, Publish.
 #
-# Build-job sequencing on Mac:
-#   - The arm64 job runs first and publishes the DMG + latest-mac.yml (the auto-
-#     update manifest) to the draft release.
-#   - The x64 (Intel) job waits for arm64, builds, then uploads ONLY its DMG to
-#     the same draft release. It does NOT publish a manifest, because the manifest
-#     electron-updater consumes is shared across architectures and the arm64
-#     manifest already references both DMGs by file naming convention.
+# How to ALSO build the Intel Mac (x64) DMG for a release:
+#   The Intel build uses GitHub's macos-13 runner, which has very limited capacity
+#   in 2026 and frequently sits queued for hours. To keep routine releases fast,
+#   it does NOT run automatically on tag push. Instead, trigger it manually after
+#   the routine build has finished:
+#     1. GitHub → Actions → Release workflow → "Run workflow" button
+#     2. Choose: branch = main, tag = the existing release tag (e.g. v1.0.2)
+#     3. Submit. The job builds the x64 DMG and uploads it to the existing
+#        release alongside the arm64 + Windows artifacts.
 #
 # Auto-update is wired through electron-updater pointed at this repo's Releases.
 # Once published, every installed copy notices on next launch.
@@ -33,6 +34,12 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing release tag to build the Intel Mac DMG for (e.g. v1.0.2)'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -42,6 +49,7 @@ env:
 
 jobs:
   build-mac-arm64:
+    if: github.event_name == 'push'
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -67,45 +75,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build-mac-x64:
-    needs: build-mac-arm64
-    runs-on: macos-13   # GitHub's Intel Mac runner. Deprecation date — TBD; revisit if removed.
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-      - run: npm ci
-
-      - name: Compile whisper-cli (x64 + Metal)
-        run: |
-          set -euo pipefail
-          mkdir -p bin
-          curl -fsSL "https://github.com/ggerganov/whisper.cpp/archive/refs/tags/v${WHISPER_VERSION}.tar.gz" | tar xz
-          cd "whisper.cpp-${WHISPER_VERSION}"
-          cmake -B build -DCMAKE_BUILD_TYPE=Release -DGGML_METAL=ON -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_EXAMPLES=ON
-          cmake --build build --config Release -j --target whisper-cli
-          cp build/bin/whisper-cli ../bin/whisper
-          chmod +x ../bin/whisper
-
-      - name: Build x64 DMG (no publish — uploaded manually below)
-        run: npx electron-builder --mac --x64 --publish never
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload x64 DMG to draft release
-        run: |
-          set -euo pipefail
-          DMG=$(ls dist/*.dmg | head -1)
-          echo "Uploading $DMG to release ${GITHUB_REF_NAME}"
-          # --clobber replaces any same-named existing asset; the arm64 job published a
-          # different file name (with -arm64 suffix) so there's nothing to collide with.
-          gh release upload "${GITHUB_REF_NAME}" "$DMG" --clobber
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   build-win:
+    if: github.event_name == 'push'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -135,5 +106,44 @@ jobs:
 
       - name: Build and publish
         run: npx electron-builder --win --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-mac-x64:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: macos-13   # GitHub's Intel Mac runner. Often queues for hours; that's why this is opt-in.
+    steps:
+      - name: Checkout the requested tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+
+      - name: Compile whisper-cli (x64 + Metal)
+        run: |
+          set -euo pipefail
+          mkdir -p bin
+          curl -fsSL "https://github.com/ggerganov/whisper.cpp/archive/refs/tags/v${WHISPER_VERSION}.tar.gz" | tar xz
+          cd "whisper.cpp-${WHISPER_VERSION}"
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DGGML_METAL=ON -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_EXAMPLES=ON
+          cmake --build build --config Release -j --target whisper-cli
+          cp build/bin/whisper-cli ../bin/whisper
+          chmod +x ../bin/whisper
+
+      - name: Build x64 DMG (no publish — uploaded manually below)
+        run: npx electron-builder --mac --x64 --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload x64 DMG to specified release
+        run: |
+          set -euo pipefail
+          DMG=$(ls dist/*.dmg | head -1)
+          echo "Uploading $DMG to release ${{ inputs.tag }}"
+          gh release upload "${{ inputs.tag }}" "$DMG" --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
