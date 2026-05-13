@@ -8,7 +8,7 @@ const chokidar = require('chokidar');
 const https = require('https');
 const ftp = require('basic-ftp'); // Dependency for FTP
 const fsPromises = require('fs/promises');
-const { app, BrowserWindow, ipcMain, dialog, Menu, Tray, nativeImage, Notification, shell, safeStorage } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu, Tray, nativeImage, Notification, shell, safeStorage, net } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const windowStateKeeper = require('electron-window-state');
 const vadOnnx = require('./vad-onnx');
@@ -502,34 +502,61 @@ function getMachineFingerprint() {
 }
 
 function callLicenseApi(params) {
-  // GET with query params + manual redirect handling. Apps Script web apps return a 302
-  // to script.googleusercontent.com on first hit; the redirect target preserves the params.
+  // Electron's `net` module uses Chromium's networking stack — identical to what the
+  // embedded browser uses. That means it honors the OS certificate store (essential
+  // on machines where antivirus/endpoint-protection MITMs HTTPS with an injected root
+  // CA — Chrome trusts those, Node's `https` doesn't and fails the handshake), system
+  // proxy settings, PAC scripts, and silent corporate VPNs. Switched from Node's
+  // `https` in v1.0.3 after a teammate hit "Network Error" on multiple networks while
+  // the same URL loaded fine in their browser — classic AV-cert-injection symptom.
+  //
+  // Apps Script web apps return a 302 redirect to script.googleusercontent.com on
+  // the first hit. We use net.request's default `redirect: 'follow'` so the chained
+  // GET happens transparently.
   const qs = new URLSearchParams(params).toString();
   const targetUrl = `${GOOG_URL}?${qs}`;
-  const fetchWithRedirects = (url, hops = 0) =>
-    new Promise((resolve) => {
-      if (hops > 5) return resolve({ ok: false, error: 'Too many redirects' });
-      const req = https.get(url, (res) => {
-        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-          return resolve(fetchWithRedirects(res.headers.location, hops + 1));
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const settle = (result) => {
+      if (settled) return;
+      settled = true;
+      try { clearTimeout(timer); } catch (_) {}
+      resolve(result);
+    };
+
+    const request = net.request({ method: 'GET', url: targetUrl, redirect: 'follow' });
+
+    const timer = setTimeout(() => {
+      try { request.abort(); } catch (_) {}
+      settle({ ok: false, error: 'License server timeout' });
+    }, LICENSE_RECHECK_TIMEOUT_MS);
+
+    request.on('response', (response) => {
+      let body = '';
+      response.on('data', (chunk) => { body += chunk.toString(); });
+      response.on('end', () => {
+        try {
+          settle({ ok: true, json: JSON.parse(body) });
+        } catch (_e) {
+          settle({ ok: false, error: 'Invalid response from license server' });
         }
-        let body = '';
-        res.on('data', (chunk) => (body += chunk));
-        res.on('end', () => {
-          try {
-            resolve({ ok: true, json: JSON.parse(body) });
-          } catch (_e) {
-            resolve({ ok: false, error: 'Invalid response from license server' });
-          }
-        });
       });
-      req.on('error', () => resolve({ ok: false, error: 'Network unreachable' }));
-      req.setTimeout(LICENSE_RECHECK_TIMEOUT_MS, () => {
-        req.destroy();
-        resolve({ ok: false, error: 'License server timeout' });
+      response.on('error', (err) => {
+        sendLog(`License response error: ${err && err.message ? err.message : err}`, 'error');
+        settle({ ok: false, error: 'Network unreachable' });
       });
     });
-  return fetchWithRedirects(targetUrl);
+
+    request.on('error', (err) => {
+      // Log the underlying Chromium error so the user-data log has actionable detail
+      // when an enterprise machine fails (e.g. CERT_AUTHORITY_INVALID, PROXY_AUTH_REQUIRED).
+      sendLog(`License request error: ${err && err.message ? err.message : err}`, 'error');
+      settle({ ok: false, error: 'Network unreachable' });
+    });
+
+    request.end();
+  });
 }
 
 function readLicenseFile() {

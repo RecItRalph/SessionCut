@@ -4,6 +4,30 @@ All notable changes to SessionCut are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.3] — 2026-05-11
+
+Field-report fix: a teammate on a corporate-managed laptop was hitting "Network
+Error — check your internet connection" on every license-activation attempt
+across four different public WiFi networks (airport, hotel, convention center)
+even though the same license-server URL loaded fine in his browser on those
+same networks.
+
+### Fixed
+
+- **License activation/recheck on machines with TLS inspection or silent
+  corporate proxies.** Switched `callLicenseApi` from Node's `https` module to
+  Electron's `net` module. The `net` module uses Chromium's networking stack —
+  the same one the embedded browser uses — which honors the OS certificate
+  store, system proxy settings, PAC scripts, and silent corporate VPNs. Node's
+  `https` has its own bundled CA list and ignores OS-level network config, so
+  on machines where AV / endpoint protection MITMs HTTPS with an injected root
+  CA, the TLS handshake fails before any request is sent. This was the root
+  cause of the field report.
+- **Additional diagnostic logging.** When license API calls fail, the
+  underlying Chromium error (e.g. `CERT_AUTHORITY_INVALID`, `PROXY_AUTH_REQUIRED`)
+  is written to the system log, so future debugging on a teammate's machine
+  doesn't require swapping in a debug build.
+
 ## [1.0.2] — 2026-05-11
 
 Quick follow-up to v1.0.1 to fix the missing Windows menu and split the Intel
